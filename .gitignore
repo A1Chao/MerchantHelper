@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 运行产物（不要提交）
+截图/
+录音/
+录音_now/
+全屏截图/
+test_out/
+test_out_diag/
+*.log
+diag.txt
+游戏内*.txt
+
+# 打包产物
+dist/
+build/out/
+*.exe
+
+# 编辑器/系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+# 测试输出（离线探针产物）
+tests/out_*.txt

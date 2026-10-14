@@ -1,0 +1,14 @@
+# 运行本仓所需依赖（Windows / Python 3.11+）
+#
+# 音频识别：numpy + scipy + soundfile
+# 界面：PyQt5（注意：PyQt5 是 GPL v3 / 商业双许可，见 LICENSE-草案.md 与 THIRD-PARTY-LICENSES.md）
+# 集成层还用到 cv2 / pillow（截图与图像基础操作）
+numpy
+scipy
+soundfile
+PyQt5
+opencv-python
+pillow
+
+# 音频设备访问（Windows）：本仓已内置第三方 deps/comtypes 与 deps/soundcard，
+# 无需 pip 安装；它们的许可见 THIRD-PARTY-LICENSES.md。
