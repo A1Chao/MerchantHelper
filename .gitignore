@@ -27,4 +27,6 @@ build/out/
 Thumbs.db
 desktop.ini
 # 测试输出（离线探针产物）
-tests/out_*.txt
+# 不只 .txt：analyze_samples.py 会生成 out_sample_*_annot.png，探针会生成 out_*.npy / out_*.png，
+# 都是可重新生成的产物；真正的音频夹具叫 loopback_test.npy / loopback_ref.npz / *_snr*.npz，不受影响。
+tests/out_*
