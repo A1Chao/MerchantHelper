@@ -42,6 +42,11 @@
 
 → **想要完整功能，请用 Releases 里的官方 exe。**
 
+**最新版下载：[Releases](https://github.com/A1Chao/MerchantHelper/releases/latest)（当前 v1.1.0，单文件免安装）。**
+如果双击时 Windows 先弹「Windows 已保护你的电脑」（SmartScreen），见
+[`docs/SmartScreen与代码签名.md`](docs/SmartScreen与代码签名.md)——**处理一次，之后只弹 UAC**；
+从 QQ 群 / 微信 / U 盘 拿到的文件本来就不弹，可以直接跳过。
+
 ## 三、运行（源码）
 
 ### 环境
@@ -84,6 +89,7 @@ python main.py --pitch 85               :: 手动指定格宽（需配合视觉�
 | 现象 | 原因 / 处理 |
 | --- | --- |
 | 拖动物品毫无反应 | 没有用管理员权限（见上） |
+| 双击弹「Windows 已保护你的电脑」 | 浏览器下载带的标记（或副本被标成低完整性）；见 [SmartScreen 说明](docs/SmartScreen与代码签名.md)，处理一次即可 |
 | 面板没有候选 | 单击不出声，必须**拖动**；或设备选错（先 `--list-devices`） |
 | 格数显示 `?格` | 开源版没有视觉核心；请用官方 exe |
 | 面板挡视线 | 面板是可拖动的独立小窗，拖到合适位置即可 |
@@ -117,4 +123,5 @@ assets/           物品库、图标、音效
 deps/             第三方：comtypes、soundcard
 tests/            离线测试（音频 / 候选 / 触发 / 会话锁 / 按住采样）
 docs/详细说明.md   原项目详细说明
+docs/SmartScreen与代码签名.md   Windows 提示与 SmartScreen：为什么会弹、怎么永久免除
 ```

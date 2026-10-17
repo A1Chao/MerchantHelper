@@ -46,6 +46,12 @@ layer (`main.py`).
 
 → **For the full feature set, use the official exe in Releases.**
 
+**Latest download: [Releases](https://github.com/A1Chao/MerchantHelper/releases/latest) (currently v1.1.0,
+a single portable exe).** If Windows shows "Windows protected your PC" (SmartScreen) before the UAC
+prompt, see [`docs/SmartScreen与代码签名.md`](docs/SmartScreen与代码签名.md) (Chinese) — **do it once
+and only the UAC prompt remains.** Files received via QQ / WeChat / USB stick are not marked at all,
+so you can skip that page.
+
 ## 3. Running from source
 
 ### Requirements
@@ -90,6 +96,7 @@ Please **right-click → Run as administrator**.
 | Symptom | Cause / fix |
 | --- | --- |
 | Dragging an item does nothing | Not running as administrator (see above) |
+| "Windows protected your PC" on launch | Download mark from a browser (or a low-integrity copy); see [the SmartScreen notes](docs/SmartScreen与代码签名.md) — one-time fix |
 | No candidates in the panel | A click makes no sound — you must **drag**; or the wrong device (`--list-devices`) |
 | Footprint shows `?格` | The open edition has no vision core; use the official exe |
 | Panel blocks the view | The panel is a separate draggable window — move it |
@@ -125,4 +132,5 @@ assets/           item database, icons, sound effects
 deps/             third party: comtypes, soundcard
 tests/            offline tests (audio / candidates / triggers / session lock / hold sampling)
 docs/详细说明.md   original detailed notes (Chinese)
+docs/SmartScreen与代码签名.md   Windows SmartScreen prompt: why it appears and how to stop it (Chinese)
 ```

@@ -7,6 +7,8 @@
 - **中文说明 → [README-zh.md](README-zh.md)**
 - **English → [README-en.md](README-en.md)**
 - **详细说明（原项目文档）→ [docs/详细说明.md](docs/详细说明.md)**
+- **下载最新版 → [Releases](https://github.com/A1Chao/MerchantHelper/releases/latest)**（当前 v1.1.0）
+- **Windows 弹「Windows 已保护你的电脑」→ [docs/SmartScreen与代码签名.md](docs/SmartScreen与代码签名.md)**（一次处理，之后只弹 UAC）
 
 ---
 
