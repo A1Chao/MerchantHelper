@@ -1,5 +1,7 @@
 # MerchantHelper
 
+> **Version note:** [v1.1.2](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.2) is audio-only, without screen capture or automatic grid recognition. Both editions require an edition-matching v2 `license.lic`, not included in downloads; Free adds a 0.1s result delay. The listen/look description below refers to the historical full edition. See [release notes](docs/releases/v1.1.2.md).
+
 > An **external-perception** helper for the "field merchant" gameplay in *Arena Breakout: Infinite*.
 > Author: **烟火**
 
@@ -46,7 +48,7 @@ layer (`main.py`).
 
 → **For the full feature set, use the official exe in Releases.**
 
-**Latest download: [Releases](https://github.com/A1Chao/MerchantHelper/releases/latest) (currently v1.1.0,
+**Historical full-edition download: [Releases](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.0) (v1.1.0,
 a single portable exe).** If Windows shows "Windows protected your PC" (SmartScreen) before the UAC
 prompt, see [`docs/SmartScreen与代码签名.md`](docs/SmartScreen与代码签名.md) (Chinese) — **do it once
 and only the UAC prompt remains.** Files received via QQ / WeChat / USB stick are not marked at all,

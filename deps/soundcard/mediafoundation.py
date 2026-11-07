@@ -87,24 +87,48 @@ class _COMLibrary:
         E_POINTER = 0x80004003
         E_OUTOFMEMORY = 0x8007000e
         E_INVALIDARG = 0x80070057
+        E_ACCESSDENIED = 0x80070005
         AUDCLNT_E_UNSUPPORTED_FORMAT = 0x88890008
+        # --- 兼容性补丁（非上游代码）：把常见 WASAPI 错误翻译成人话 -------------
+        # 上游只认 5 个 HRESULT，其余都输出 "Error 0x…"，日志里等于没信息。
+        # 采集失败时用户/维护者最需要知道的是「设备被独占 / 格式不支持 / 设备不可用」。
+        _MESSAGES = {
+            0x80070005: 'E_ACCESSDENIED（无权限：设备被其它进程独占，或被系统策略禁止）',
+            0x80070057: 'E_INVALIDARG（参数/格式不被该设备接受）',
+            0x88890003: 'AUDCLNT_E_WRONG_ENDPOINT_TYPE（设备方向不对：这不是播放端点）',
+            0x88890004: 'AUDCLNT_E_DEVICE_INVALIDATED（设备已失效：被拔出/切换/驱动重载）',
+            0x88890006: 'AUDCLNT_E_BUFFER_SIZE_ERROR（缓冲大小不被支持）',
+            0x88890007: 'AUDCLNT_E_OUT_OF_ORDER（调用顺序错误）',
+            0x88890008: 'AUDCLNT_E_UNSUPPORTED_FORMAT（设备不支持该采样率/位深/声道）',
+            0x8889000A: 'AUDCLNT_E_DEVICE_IN_USE（设备正被独占模式占用）',
+            0x8889000B: 'AUDCLNT_E_ENDPOINT_CREATE_FAILED（端点创建失败：驱动异常）',
+            0x8889000E: 'AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED（该设备不允许独占模式）',
+            0x88890010: 'AUDCLNT_E_SERVICE_NOT_RUNNING（Windows 音频服务未运行）',
+            0x88890011: 'AUDCLNT_E_EVENTHANDLE_NOT_EXPECTED（事件句柄不匹配）',
+            0x88890017: 'AUDCLNT_E_CPUUSAGE_EXCEEDED（音频引擎 CPU 超限）',
+        }
         if hresult == S_OK:
             return
-        elif hresult+2**32 == E_NOINTERFACE:
+        code = hresult + 2 ** 32
+        if code in _MESSAGES:
+            raise RuntimeError('{} [0x{:08x}]'.format(_MESSAGES[code], code))
+        elif code == E_NOINTERFACE:
             raise RuntimeError('The specified class does not implement the '
                                'requested interface, or the controlling '
                                'IUnknown does not expose the requested '
                                'interface.')
-        elif hresult+2**32 == E_POINTER:
+        elif code == E_POINTER:
             raise RuntimeError('An argument is NULL.')
-        elif hresult+2**32 == E_INVALIDARG:
+        elif code == E_INVALIDARG:
             raise RuntimeError("invalid argument")
-        elif hresult+2**32 == E_OUTOFMEMORY:
+        elif code == E_OUTOFMEMORY:
             raise RuntimeError("out of memory")
-        elif hresult+2**32 == AUDCLNT_E_UNSUPPORTED_FORMAT:
+        elif code == E_ACCESSDENIED:
+            raise RuntimeError('access denied')
+        elif code == AUDCLNT_E_UNSUPPORTED_FORMAT:
             raise RuntimeError("unsupported format")
         else:
-            raise RuntimeError('Error {}'.format(hex(hresult+2**32)))
+            raise RuntimeError('Error {}'.format(hex(code)))
 
     @staticmethod
     def release(ppObject):
@@ -114,6 +138,43 @@ class _COMLibrary:
             ppObject[0] = _ffi.NULL
 
 _com = _COMLibrary()
+
+#: KSDATAFORMAT_SUBTYPE_IEEE_FLOAT（00000003-0000-0010-8000-00AA00389B71）的 16 字节小端表示。
+_IEEE_FLOAT_SUBFORMAT = bytes.fromhex('0300000000001000800000aa00389b71')
+
+
+def _describe_format(raw):
+    """把 40 字节 WAVEFORMATEXTENSIBLE 描述成一行日志（诊断用，不抛异常）。"""
+    try:
+        return ('tag=0x%04x cbSize=%d ch=%d rate=%d bits=%d sub=%s'
+                % (int.from_bytes(raw[0:2], 'little'),
+                   int.from_bytes(raw[16:18], 'little'),
+                   int.from_bytes(raw[2:4], 'little'),
+                   int.from_bytes(raw[4:8], 'little'),
+                   int.from_bytes(raw[14:16], 'little'),
+                   raw[24:40].hex()))
+    except Exception:
+        return 'unknown'
+
+
+def _pack_float_format(samplerate, channels, channelmask):
+    """手工拼一个 32-bit float 的 WAVEFORMATEXTENSIBLE（40 字节）。
+
+    为什么需要（兼容性补丁，非上游代码）：部分蓝牙耳机 / 廉价 USB 声卡的混音格式是
+    16-bit PCM，甚至给的是 18 字节裸 WAVEFORMATEX；上游 soundcard 在 `_AudioClient`
+    里硬 assert「必须是 float32 的 WAVEFORMATEXTENSIBLE」，一旦不满足就
+    AssertionError，采集直接打不开（用户侧表现：某些型号耳机完全没声音）。
+    WASAPI 的 AUTOCONVERTPCM 允许客户端请求 float32、由音频引擎做位深/采样率转换，
+    所以这里不再依赖设备给的格式，直接按需要的采样率/声道数拼一个标准 float32 结构。
+    """
+    data = bytearray(40)
+    struct.pack_into('<HHIIHHHHI', data, 0, 0xFFFE, int(channels), int(samplerate),
+                     int(samplerate) * int(channels) * 4, int(channels) * 4,
+                     32, 22, 32, int(channelmask))
+    data[24:40] = _IEEE_FLOAT_SUBFORMAT
+    buf = _ffi.new('char[]', 40)
+    _ffi.memmove(buf, bytes(data), 40)
+    return _ffi.cast('WAVEFORMATEXTENSIBLE *', buf), buf
 
 def all_speakers():
     """A list of all connected speakers."""
@@ -400,13 +461,39 @@ class _Device:
         hr = ppPropertyStore[0][0].lpVtbl.GetValue(ppPropertyStore[0], PKEY_AudioEngine_DeviceFormat, propvariant.ptr)
         _com.release(ppPropertyStore)
         _com.check_error(hr)
-        if propvariant.ptr[0].vt != 65:
-            raise RuntimeError('Property was expected to be a blob, but is not a blob')
-        pPropVariantBlob = _ffi.cast("BLOB_PROPVARIANT *", propvariant.ptr)
-        assert pPropVariantBlob[0].blob.cbSize == 40
-        waveformat = _ffi.cast("WAVEFORMATEX *", pPropVariantBlob[0].blob.pBlobData)
-        channels = waveformat[0].nChannels
-        return channels
+        # --- 兼容性补丁（非上游代码）-------------------------------------------
+        # 上游这里断言属性必须是 40 字节的 WAVEFORMATEXTENSIBLE blob：
+        #   assert pPropVariantBlob[0].blob.cbSize == 40
+        # 但「设备默认格式」在只设成 16-bit 立体声时，Windows 存的是 18 字节的
+        # 裸 WAVEFORMATEX（cbSize==18），断言直接抛 AssertionError →
+        # `_Microphone.recorder()` 里的 `self.channels` 把整个采集打挂，
+        # 表现为「某些型号耳机一开监测就没声音/无信号」，管理员权限也没用。
+        # 这里改成：能读几个通道就读几个，读不到再退回混音格式，绝不抛断言。
+        if propvariant.ptr[0].vt == 65:
+            pPropVariantBlob = _ffi.cast("BLOB_PROPVARIANT *", propvariant.ptr)
+            cb = int(pPropVariantBlob[0].blob.cbSize)
+            if cb >= 18:                       # WAVEFORMATEX 或 WAVEFORMATEXTENSIBLE 都够读 nChannels
+                waveformat = _ffi.cast("WAVEFORMATEX *", pPropVariantBlob[0].blob.pBlobData)
+                channels = int(waveformat[0].nChannels)
+                if channels > 0:
+                    return channels
+        return self._mix_format_channels()
+
+    def _mix_format_channels(self):
+        """读取设备混音格式的通道数；任何失败都退回 2 声道（绝不抛异常）。"""
+        try:
+            ac = self._audio_client()
+            try:
+                ppFormat = _ffi.new('WAVEFORMATEXTENSIBLE**')
+                hr = ac[0][0].lpVtbl.GetMixFormat(ac[0], ppFormat)
+                _com.check_error(hr)
+                ch = int(ppFormat[0][0].Format.nChannels)
+                _ole32.CoTaskMemFree(ppFormat[0])
+                return ch if ch > 0 else 2
+            finally:
+                _com.release(ac)
+        except Exception:
+            return 2
 
     def _audio_client(self):
         CLSCTX_ALL = 23
@@ -475,7 +562,15 @@ class _Microphone(_Device):
     def recorder(self, samplerate, channels=None, blocksize=None, exclusive_mode=False):
         if channels is None:
             channels = self.channels
-        return _Recorder(self._audio_client(), samplerate, channels, blocksize, self.isloopback, exclusive_mode)
+        ptr = self._audio_client()
+        try:
+            return _Recorder(ptr, samplerate, channels, blocksize, self.isloopback, exclusive_mode)
+        except Exception:
+            try:
+                _com.release(ptr)
+            except Exception:
+                pass
+            raise
 
     def record(self, numframes, samplerate, channels=None, blocksize=None):
         with self.recorder(samplerate, channels, blocksize) as r:
@@ -511,32 +606,41 @@ class _AudioClient:
         ppMixFormat = _ffi.new('WAVEFORMATEXTENSIBLE**')
         hr = self._ptr[0][0].lpVtbl.GetMixFormat(self._ptr[0], ppMixFormat)
         _com.check_error(hr)
-
-        # It's a WAVEFORMATEXTENSIBLE with room for KSDATAFORMAT_SUBTYPE_IEEE_FLOAT:
-        assert ppMixFormat[0][0].Format.wFormatTag == 0xFFFE
-        assert ppMixFormat[0][0].Format.cbSize == 22
-
-        # The data format is float32:
-        # These values were found empirically, and I don't know why they work.
-        # The program crashes if these values are different
-        assert ppMixFormat[0][0].SubFormat.Data1 == 0x100000
-        assert ppMixFormat[0][0].SubFormat.Data2 == 0x0080
-        assert ppMixFormat[0][0].SubFormat.Data3 == 0xaa00
-        assert [int(x) for x in ppMixFormat[0][0].SubFormat.Data4[0:4]] == [0, 56, 155, 113]
-        # the last four bytes seem to vary randomly
+        raw = bytes(_ffi.buffer(ppMixFormat[0], 40))
+        self.device_mix_format = _describe_format(raw)
 
         channels = len(set(self.channelmap))
         channelmask = 0
         for ch in self.channelmap:
             channelmask |= 1<<ch
-        ppMixFormat[0][0].Format.nChannels=channels
-        ppMixFormat[0][0].Format.nSamplesPerSec=int(samplerate)
-        ppMixFormat[0][0].Format.nAvgBytesPerSec=int(samplerate) * channels * 4
-        ppMixFormat[0][0].Format.nBlockAlign=channels * 4
-        ppMixFormat[0][0].Format.wBitsPerSample=32
-        ppMixFormat[0][0].Samples=dict(wValidBitsPerSample=32)
-        # does not work:
-        # ppMixFormat[0][0].dwChannelMask=channelmask
+
+        # --- 兼容性补丁（非上游代码）-----------------------------------------
+        # 上游这里用 4 个 assert 死认「设备混音格式 = WAVEFORMATEXTENSIBLE 32-bit float」，
+        # 不满足就 AssertionError（整个采集打不开）。现实里蓝牙耳机、廉价 USB 声卡
+        # 可能给 16-bit PCM 混音格式。处理方式：
+        #   * 是 float32 → 沿用设备给的结构（与旧版行为完全一致）；
+        #   * 不是 float32 → 自建标准 float32 结构，交给 AUTOCONVERTPCM 转换位深。
+        is_ext = raw[0:2] == b'\xfe\xff'
+        is_float32 = (is_ext
+                      and raw[24:40] == _IEEE_FLOAT_SUBFORMAT
+                      and int.from_bytes(raw[14:16], 'little') == 32
+                      and int.from_bytes(raw[16:18], 'little') == 22)
+        if is_float32:
+            fmt = ppMixFormat[0]
+            fmt.Format.nChannels=channels
+            fmt.Format.nSamplesPerSec=int(samplerate)
+            fmt.Format.nAvgBytesPerSec=int(samplerate) * channels * 4
+            fmt.Format.nBlockAlign=channels * 4
+            fmt.Format.wBitsPerSample=32
+            fmt.Samples=dict(wValidBitsPerSample=32)
+            # does not work:
+            # fmt.dwChannelMask=channelmask
+            keepalive = None
+            self.client_format = 'float32/设备格式 %dHz/%dch' % (int(samplerate), channels)
+        else:
+            fmt, keepalive = _pack_float_format(int(samplerate), channels, channelmask)
+            self.client_format = ('float32(自建) %dHz/%dch ← 设备混音格式 %s'
+                                  % (int(samplerate), channels, self.device_mix_format))
 
         if exclusive_mode:
             sharemode = _ole32.AUDCLNT_SHAREMODE_EXCLUSIVE
@@ -547,9 +651,12 @@ class _AudioClient:
         if isloopback:
             streamflags |= 0x00020000 #loopback
         bufferduration = int(blocksize/samplerate * 10000000) # in hecto-nanoseconds (1000_000_0)
-        hr = self._ptr[0][0].lpVtbl.Initialize(self._ptr[0], sharemode, streamflags, bufferduration, 0, ppMixFormat[0], _ffi.NULL)
-        _com.check_error(hr)
-        _ole32.CoTaskMemFree(ppMixFormat[0])
+        try:
+            hr = self._ptr[0][0].lpVtbl.Initialize(self._ptr[0], sharemode, streamflags, bufferduration, 0, fmt, _ffi.NULL)
+            _com.check_error(hr)
+        finally:
+            _ole32.CoTaskMemFree(ppMixFormat[0])
+        del keepalive
 
         # save samplerate for later
         self.samplerate = samplerate
@@ -571,6 +678,24 @@ class _AudioClient:
         hr = self._ptr[0][0].lpVtbl.GetDevicePeriod(self._ptr[0], pDefaultPeriod, pMinimumPeriod)
         _com.check_error(hr)
         return pDefaultPeriod[0]/10_000_000, pMinimumPeriod[0]/10_000_000
+
+    def cached_deviceperiod(self):
+        """取一次设备周期并缓存（不要每圈都问系统）。
+
+        为什么必须缓存（非上游代码，2026-10-31 20:24 崩溃的直接原因）：
+        上游 ``_record_chunk()`` 在「设备暂时没有可用帧」的等待循环里，**每一圈**
+        都调用 ``self.deviceperiod``，而设备静音/选错设备时这个循环一秒会转几百圈，
+        等于一秒几百次 COM 调用。蓝牙耳机休眠、端点被切换或驱动重载时，
+        ``self._ptr`` 指向的 IAudioClient 已经失效，下一次 GetDevicePeriod 就会
+        访问违例（c0000005），进程当场被系统杀掉 —— Python / faulthandler 只能在
+        事后留下栈，救不回来。
+        设备周期在一次会话内不会变，取一次就够；顺带把每秒数百次 COM 调用降到 1 次。
+        """
+        period = getattr(self, "_deviceperiod_cache", None)
+        if period is None:
+            period = self.deviceperiod
+            self._deviceperiod_cache = period
+        return period
 
     @property
     def currentpadding(self):
@@ -711,18 +836,47 @@ class _Recorder(_AudioClient):
         return pSize[0]
 
     def __enter__(self):
-        self._ppCaptureClient = self._capture_client()
-        hr = self._ptr[0][0].lpVtbl.Start(self._ptr[0])
-        _com.check_error(hr)
+        try:
+            self._ppCaptureClient = self._capture_client()
+            hr = self._ptr[0][0].lpVtbl.Start(self._ptr[0])
+            _com.check_error(hr)
+        except Exception:
+            for ptr in (getattr(self, "_ppCaptureClient", None), self._ptr):
+                if ptr is not None:
+                    try:
+                        _com.release(ptr)
+                    except Exception:
+                        pass
+            raise
         self._pending_chunk = numpy.zeros([0], dtype='float32')
         self._is_first_frame = True
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        hr = self._ptr[0][0].lpVtbl.Stop(self._ptr[0])
-        _com.check_error(hr)
-        _com.release(self._ppCaptureClient)
-        _com.release(self._ptr)
+        errors = []
+        try:
+            hr = self._ptr[0][0].lpVtbl.Stop(self._ptr[0])
+            _com.check_error(hr)
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            # 两个接口独立释放；Stop/某次 Release 失败不能跳过剩余清理。
+            for ptr in (getattr(self, "_ppCaptureClient", None), self._ptr):
+                if ptr is not None:
+                    try:
+                        _com.release(ptr)
+                    except Exception as exc:
+                        errors.append(exc)
+        if errors:
+            if exc_type is None:
+                raise errors[0]
+            try:
+                import sys
+                print("[audio] Stop/Release 失败，保留原始异常：%s" % errors[0],
+                      file=sys.stderr, flush=True)
+            except Exception:
+                pass
+        return False
 
     def _record_chunk(self):
         """Record one chunk of audio data, as returned by WASAPI
@@ -741,7 +895,7 @@ class _Recorder(_AudioClient):
             if self._idle_start_time is None:
                 self._idle_start_time = time.perf_counter_ns()
 
-            default_block_length, minimum_block_length = self.deviceperiod
+            default_block_length, minimum_block_length = self.cached_deviceperiod()
             time.sleep(minimum_block_length/4)
             elapsed_time_ns = time.perf_counter_ns() - self._idle_start_time
             # waiting times shorter than a block length or so are
@@ -751,8 +905,17 @@ class _Recorder(_AudioClient):
             # zeros instead:
             if elapsed_time_ns / 1_000_000_000 > default_block_length * 4:
                 num_frames = int(self.samplerate * elapsed_time_ns / 1_000_000_000)
+                # 上限保护（非上游代码）。2026-10-31 20:52 实测：进程内存一次从 199MB
+                # 跳到 1482MB 并保持 16 分钟不降 —— 就是这一行按"等待了多久"算出
+                # 天文数字的帧数、一次性分配了约 1.28GB 的 zeros，然后被 record()
+                # 切成 _pending_chunk 永久挂住（每读一块还要再拼一次，等于卡死）。
+                # 静音补零没有信息量：最多补 1 秒，并把计时基准重置到"现在"。
+                if num_frames > int(self.samplerate):
+                    num_frames = int(self.samplerate)
+                    self._idle_start_time = time.perf_counter_ns()
+                else:
+                    self._idle_start_time += elapsed_time_ns
                 num_channels = len(set(self.channelmap))
-                self._idle_start_time += elapsed_time_ns
                 return numpy.zeros([num_frames * num_channels], dtype='float32')
 
         self._idle_start_time = None
@@ -817,6 +980,12 @@ class _Recorder(_AudioClient):
             if recorded_frames > required_frames:
                 to_split = -int(recorded_frames-required_frames)
                 recorded_data[-1], self._pending_chunk = numpy.split(recorded_data[-1], [to_split])
+                # 兜底：遗留缓冲最多留 1 秒。上游这里会把"多出来的全部"留下，
+                # 一旦某次块异常大（见 _record_chunk 的静音补零），这个缓冲就永远
+                # 释放不掉，且每读一块都要 concatenate 一次 → 内存翻倍、CPU 卡死。
+                cap = int(self.samplerate * len(set(self.channelmap)))
+                if len(self._pending_chunk) > cap:
+                    self._pending_chunk = self._pending_chunk[-cap:]
 
         data = numpy.reshape(numpy.concatenate(recorded_data), [-1, len(set(self.channelmap))])
         return data[:, self.channelmap]

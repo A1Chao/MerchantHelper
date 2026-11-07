@@ -4,21 +4,23 @@
 > 《暗区突围：无限》「战地行商」玩法的外部感知辅助工具
 > Author / 作者：**烟火**
 
+- **声控版 1.1.1 公开源码 / Audio-only source → [audio_only/README.md](audio_only/README.md)**（v1.1.2 EXE 沿用 1.1.1 识别引擎）
 - **中文说明 → [README-zh.md](README-zh.md)**
 - **English → [README-en.md](README-en.md)**
 - **详细说明（原项目文档）→ [docs/详细说明.md](docs/详细说明.md)**
-- **下载最新版 → [Releases](https://github.com/A1Chao/MerchantHelper/releases/latest)**（当前 v1.1.0）
-- **Windows 弹「Windows 已保护你的电脑」→ [docs/SmartScreen与代码签名.md](docs/SmartScreen与代码签名.md)**（一次处理，之后只弹 UAC）
+- **下载声控版 v1.1.2 → [Release](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.2)**（赞助版 / 免费版，均需对应 v2 授权；不含视觉）
+- **历史完整版 v1.1.0 → [Release](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.0)**（原包保持不变）
+- **发布说明 → [docs/releases/v1.1.2.md](docs/releases/v1.1.2.md)**
+- **Windows 弹「Windows 已保护你的电脑」→ [docs/SmartScreen与代码签名.md](docs/SmartScreen与代码签名.md)**（v1.1.2 未签名，可能出现未知发布者提示）
 
 ---
 
 This repository is the **semi-open-source** edition: audio recognition, candidate filtering, the UI
 and the integration layer are included, while the **vision core** (grid-footprint recognition) is
-**not** — `vision.py` here is only a placeholder stub. For the full feature set, use the official
-exe in Releases.
+**not** — `vision.py` here is only a placeholder stub. The v1.1.2 release is **audio-only**. The historical v1.1.0 full edition is preserved separately.
 
 本仓库是**半开源版**：包含音频识别、候选筛选、界面与集成层；**不包含视觉（占格识别）核心**，
-仓库里的 `vision.py` 只是占位 stub。**想要完整功能请用 Releases 里的官方 exe。**
+仓库里的 `vision.py` 只是占位 stub。**v1.1.2 是纯音频声控版，不含视觉；历史 v1.1.0 完整版另行保留。**
 
 The tool is **strictly read-only** — no memory access, no injection, no input synthesis, no network.
 本工具**纯只读**：不读内存、不注入、不模拟键鼠、不联网。
