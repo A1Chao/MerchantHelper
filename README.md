@@ -4,6 +4,7 @@
 > 《暗区突围：无限》「战地行商」玩法的外部感知辅助工具
 > Author / 作者：**烟火**
 
+- **声控版 1.1.1 公开源码 / Audio-only source → [audio_only/README.md](audio_only/README.md)**（2026-11-07 稳定性更新；非 EXE 发布）
 - **中文说明 → [README-zh.md](README-zh.md)**
 - **English → [README-en.md](README-en.md)**
 - **详细说明（原项目文档）→ [docs/详细说明.md](docs/详细说明.md)**

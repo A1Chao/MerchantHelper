@@ -65,10 +65,10 @@ def main() -> int:
     print(f"    用时 {dt:.3f}s，共 {len(devices)} 个扬声器/耳机设备：")
     for i, d in enumerate(devices):
         print(f"      [{i}] {d!r}")
-    target = "扬声器 (2- Realtek(R) Audio)"
+    target = recorder.default_device_name()
     check("设备列表非空", len(devices) > 0, f"len={len(devices)}")
     print(f"    含 {target!r}: {target in devices}")
-    check("包含默认 Realtek 扬声器", target in devices)
+    check("包含当前默认播放设备", target in devices, f"default={target!r}")
 
     print("\n[2] default_device_name()")
     t0 = time.perf_counter()
