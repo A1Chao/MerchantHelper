@@ -43,3 +43,7 @@ python audio_only/tests/run_all.py
 请通过 GitHub Issues 提交实际程序版本、设备型号、复现步骤和完整诊断日志。
 
 许可、第三方署名与风险说明沿用仓库根目录文档；仅供学习交流，禁止商业用途，与游戏官方无关。
+
+## v1.1.2 Windows 发布包
+
+[下载赞助版 / 免费版](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.2)；两版均需对应的 v2 `license.lic`，不附授权。旧 v1 和跨版本授权不能使用。赞助版不额外延迟，免费版上屏额外延迟 0.1 秒。EXE 从私有完整产品树构建，包含离线授权及封装层，公开目录不包含该保护层；识别引擎仍为 1.1.1。详见 [发布说明](../docs/releases/v1.1.2.md)。

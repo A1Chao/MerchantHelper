@@ -1,5 +1,7 @@
 # 行商助手（MerchantHelper）
 
+> **版本说明**：[v1.1.2](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.2) 是纯音频声控版，不含视觉识别，手动选择格数。两版均需要对应的 v2 `license.lic`，下载不附授权；免费版额外延迟 0.1 秒。下文听/看的说明属于历史完整版。详见 [发布说明](docs/releases/v1.1.2.md)。
+
 > 《暗区突围：无限》「战地行商」玩法的**外部感知**辅助工具
 > 作者：**烟火**
 
@@ -42,7 +44,7 @@
 
 → **想要完整功能，请用 Releases 里的官方 exe。**
 
-**最新版下载：[Releases](https://github.com/A1Chao/MerchantHelper/releases/latest)（当前 v1.1.0，单文件免安装）。**
+**历史完整版下载：[Releases](https://github.com/A1Chao/MerchantHelper/releases/tag/v1.1.0)（v1.1.0，单文件免安装）。**
 如果双击时 Windows 先弹「Windows 已保护你的电脑」（SmartScreen），见
 [`docs/SmartScreen与代码签名.md`](docs/SmartScreen与代码签名.md)——**处理一次，之后只弹 UAC**；
 从 QQ 群 / 微信 / U 盘 拿到的文件本来就不弹，可以直接跳过。
